@@ -1,0 +1,10 @@
+TO DO:
+-Real encryption
+-Control listening information from the menu
+-Save/Load connection configs using saveExtensionSetting/loadExtensionSetting
+-Checkbox for "Only within scope", use isInScope
+-Abstract away client & server into just connections, allow for true P2P
+-Change the connection list to display the state each one is in
+-Create menu option to add highlight & comment for received entries
+-General GUI overhaul
+-Locking
