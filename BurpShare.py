@@ -5,7 +5,7 @@ from burp import IExtensionStateListener
 from burp import IHttpRequestResponse, IHttpService
 from Queue import Queue
 from thread import start_new_thread
-from socket import socket, AF_INET, SOCK_STREAM, SHUT_RDWR
+from socket import socket, AF_INET, SOCK_STREAM, SHUT_RDWR, SOL_SOCKET, SO_REUSEADDR
 from socket import error as socketerror
 from ssl import wrap_socket
 from itertools import izip, cycle
@@ -64,12 +64,8 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IExtensionStateListener, 
 		try:
 			self.server = ShareServer(self.inject,self.ip,self.port,self.cryptokey)
 		except Exception, e:
-			try:
-				self.port = self.port+1
-				self.server = ShareServer(self.inject,self.ip,self.port,self.cryptokey)
-			except Exception, e:
-				self._callbacks.unloadExtension()
-				raise e
+			self._callbacks.unloadExtension()
+			raise e
 		try:
 			self._callbacks.issueAlert("Listening on port "+str(self.port))
 			start_new_thread(self.server.run,())
@@ -269,12 +265,14 @@ class ShareServer:
 		self.q = Queue()
 		self.burpmethod = burpmethod
 		self.socket = socket(AF_INET,SOCK_STREAM)
+		self.socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
 		self.socket.bind( (ip,port) )
 		self.socket.listen(5)
 		
 	def run(self):
 		while True:
 			conn, addr = self.socket.accept()
+			# Shouldn't we fork on accept()?
 			while True:
 				data = conn.recv(65535)
 				if not data: break
