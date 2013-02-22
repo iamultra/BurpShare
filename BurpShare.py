@@ -95,11 +95,12 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IExtensionStateListener, 
 			host = self._hostfield.getText()
 			c = host.split(':')
 			if len(c)==1:
-				self.addPeer(c[0],int(PORT))
+				ok = self.addPeer(c[0],int(PORT))
 			elif len(c)==2:
-				self.addPeer(c[0],int(c[1]))
+				ok = self.addPeer(c[0],int(c[1]))
 			else: return
-			self._clientlist.addElement(host)
+			if ok:
+				self._clientlist.addElement(host)
 		elif event == "-":
 			# this needs to read which entry is selected in the clientlist
 			# kill the peer, then remove it from the list
@@ -191,13 +192,16 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IExtensionStateListener, 
 		self._callbacks.customizeUiComponent(jpanel)
 		
 	def addPeer(self, ip, port):
-		# XXX: should check to see if it already exists
+		if ip in self.clients:
+			self._callbacks.issueAlert("Already connected to "+ip)
+			return False
 		try:
 			self.clients[ip] = ShareClient(ip,port)
 		except socketerror:
 			self._callbacks.issueAlert("Failed to connect to "+ip+" on port "+str(port))
-			return
+			return False
 		start_new_thread(self.clients[ip].run,())
+		return True
 		
 	def delPeer(self, ip):
 		del self.clients[ip]
