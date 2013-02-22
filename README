@@ -9,3 +9,5 @@ Setup instructions:
 
 Notes:
 - Only tested on Burp 1.5.05
+- It's not peer-to-peer. Connect to someone to send to them, and vice-versa.
+- The XOR crypto key is hardcoded, which is terrible.
