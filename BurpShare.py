@@ -62,7 +62,7 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IExtensionStateListener, 
 		if not self.port: self.port = PORT
 		
 		try:
-			self.server = ShareServer(self.inject,self.ip,self.port,self.cryptokey)
+			self.server = ShareServer(self.addIncomingPeer,self.ip,self.port,self.cryptokey)
 		except Exception, e:
 			self._callbacks.unloadExtension()
 			raise e
@@ -185,17 +185,21 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IExtensionStateListener, 
 		self._callbacks.customizeUiComponent(buttons)
 		self._callbacks.customizeUiComponent(jpanel)
 		
-	def addPeer(self, ip, port):
+	def addPeer(self, ip, port, conn=None):
 		if ip in self.clients:
 			self._callbacks.issueAlert("Already connected to "+ip)
 			return False
 		try:
-			self.clients[ip] = ShareClient(ip,port)
+			self.clients[ip] = ShareClient(self.inject,conn,ip,port)
 		except socketerror:
 			self._callbacks.issueAlert("Failed to connect to "+ip+" on port "+str(port))
 			return False
 		start_new_thread(self.clients[ip].run,())
 		return True
+		
+	def addIncomingPeer(self, conn, addr)
+		ip, port = addr
+		self.addPeer(ip, port, conn)
 		
 	def delPeer(self, ip):
 		del self.clients[ip]
@@ -236,24 +240,37 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IExtensionStateListener, 
 		self._callbacks.saveExtensionSetting("listenip",self.ip)
 		self._callbacks.saveExtensionSetting("listenport",str(self.port))
 
-class ShareClient:
-	def __init__(self,ip,port):
+class ShareConnection:
+	def __init__(self,burpmethod,socket=None,ip=None,port=PORT):
 		self.q = Queue()
 		self.ip = ip
 		self.port = port
-		self.socket = socket(AF_INET,SOCK_STREAM)
-		self.socket.settimeout(5.0)
-		self.socket.connect( (self.ip,self.port) )
-		self.dorun = True
+		self.burpmethod = burpmethod
+		if not socket and ip:
+			self.socket = socket(AF_INET,SOCK_STREAM)
+			self.socket.settimeout(5.0)
+			self.socket.connect( (ip,port) )
+			self.socket.setblocking(0)
+			self.dorun = True
+		elif socket:
+			self.socket = socket
+		else:
+			raise "ShareConnection requires a socket or an IP address"
 		
 	def send(self,packet):
 		self.q.put(packet)
 		
 	def run(self):
 		while self.dorun:
-			packet = self.q.get()
-			self.socket.sendall(packet.getData())
-			self.q.task_done()
+			try:
+				#Non-blocking Receive
+				data = self.socket.recv(65535)
+				self.burpmethod(SharePacket(data))
+			except socketerror, e:
+				#Non-blocking Send				
+				packet = self.q.get()
+				self.socket.sendall(packet.getData())
+				self.q.task_done()
 			
 	def die(self):
 		self.dorun = False
@@ -272,11 +289,9 @@ class ShareServer:
 	def run(self):
 		while True:
 			conn, addr = self.socket.accept()
-			# Shouldn't we fork on accept()?
-			while True:
-				data = conn.recv(65535)
-				if not data: break
-				self.burpmethod(SharePacket(data),addr)
+			conn.setblocking(0)
+			ok = self.burpmethod(addr,conn)
+			if not ok: conn.close()
 			
 	def die(self):
 		self.socket.shutdown(SHUT_RDWR)
