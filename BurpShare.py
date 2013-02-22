@@ -3,7 +3,7 @@ from burp import ITab
 from burp import IHttpListener
 from burp import IExtensionStateListener
 from burp import IHttpRequestResponse, IHttpService
-from Queue import Queue
+from Queue import Queue, Empty as QueueEmpty
 from thread import start_new_thread
 from socket import socket, AF_INET, SOCK_STREAM, SHUT_RDWR, SOL_SOCKET, SO_REUSEADDR
 from socket import error as socketerror
@@ -89,12 +89,10 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IExtensionStateListener, 
 			host = self._hostfield.getText()
 			c = host.split(':')
 			if len(c)==1:
-				ok = self.addPeer(c[0],int(PORT))
+				self.addOutgoingPeer(c[0],int(PORT))
 			elif len(c)==2:
-				ok = self.addPeer(c[0],int(c[1]))
+				self.addOutgoingPeer(c[0],int(c[1]))
 			else: return
-			if ok:
-				self._clientlist.addElement(host)
 		elif event == "-":
 			# this needs to read which entry is selected in the clientlist
 			# kill the peer, then remove it from the list
@@ -190,16 +188,23 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IExtensionStateListener, 
 			self._callbacks.issueAlert("Already connected to "+ip)
 			return False
 		try:
-			self.clients[ip] = ShareClient(self.inject,conn,ip,port)
+			self.clients[ip] = ShareConnection(self.inject,conn,ip,port)
 		except socketerror:
 			self._callbacks.issueAlert("Failed to connect to "+ip+" on port "+str(port))
 			return False
 		start_new_thread(self.clients[ip].run,())
 		return True
 		
-	def addIncomingPeer(self, conn, addr)
+	def addIncomingPeer(self, conn, addr):
 		ip, port = addr
-		self.addPeer(ip, port, conn)
+		ok = self.addPeer(ip, port, conn)
+		if ok:
+			self._clientlist.addElement(ip+":"+str(port))
+		
+	def addOutgoingPeer(self, ip, port):
+		ok = self.addPeer(ip, port, None)
+		if ok:
+			self._clientlist.addElement(ip+":"+str(port))
 		
 	def delPeer(self, ip):
 		del self.clients[ip]
@@ -241,61 +246,68 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IExtensionStateListener, 
 		self._callbacks.saveExtensionSetting("listenport",str(self.port))
 
 class ShareConnection:
-	def __init__(self,burpmethod,socket=None,ip=None,port=PORT):
+	def __init__(self,burpmethod,insock=None,ip=None,port=PORT):
 		self.q = Queue()
 		self.ip = ip
 		self.port = port
 		self.burpmethod = burpmethod
-		if not socket and ip:
-			self.socket = socket(AF_INET,SOCK_STREAM)
-			self.socket.settimeout(5.0)
-			self.socket.connect( (ip,port) )
-			self.socket.setblocking(0)
-			self.dorun = True
+		if not insock and ip:
+			self.sock = socket(AF_INET,SOCK_STREAM)
+			self.sock.settimeout(5.0)
+			self.sock.connect( (ip,port) )
 		elif socket:
-			self.socket = socket
+			self.sock = insock
 		else:
 			raise "ShareConnection requires a socket or an IP address"
+		self.dorun = True
 		
 	def send(self,packet):
 		self.q.put(packet)
 		
 	def run(self):
+		self.sock.setblocking(0)
 		while self.dorun:
 			try:
 				#Non-blocking Receive
-				data = self.socket.recv(65535)
-				self.burpmethod(SharePacket(data))
+				data = self.sock.recv(65535)
+				print data
+				if data: self.burpmethod(SharePacket(data))
 			except socketerror, e:
-				#Non-blocking Send				
-				packet = self.q.get()
-				self.socket.sendall(packet.getData())
-				self.q.task_done()
-			
+				num,text = e
+				if num==10035:
+					#Non-blocking Send		
+					try:
+						packet = self.q.get_nowait()
+						self.sock.sendall(packet.getData())
+						self.q.task_done()
+					except QueueEmpty:
+						pass						
+				else:
+					raise e
+	
 	def die(self):
 		self.dorun = False
 		self.q.join()
-		self.socket.close()
+		self.sock.close()
 			
 class ShareServer:
 	def __init__(self,burpmethod,ip,port,key):
 		self.q = Queue()
 		self.burpmethod = burpmethod
-		self.socket = socket(AF_INET,SOCK_STREAM)
-		self.socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-		self.socket.bind( (ip,port) )
-		self.socket.listen(5)
+		self.sock = socket(AF_INET,SOCK_STREAM)
+		self.sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+		self.sock.bind( (ip,port) )
+		self.sock.listen(5)
 		
 	def run(self):
 		while True:
-			conn, addr = self.socket.accept()
-			conn.setblocking(0)
+			conn, addr = self.sock.accept()
 			ok = self.burpmethod(addr,conn)
 			if not ok: conn.close()
 			
 	def die(self):
-		self.socket.shutdown(SHUT_RDWR)
-		self.socket.close()
+		self.sock.shutdown(SHUT_RDWR)
+		self.sock.close()
 			
 class SharePacket:
 	def __init__(self,data):
