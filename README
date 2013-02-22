@@ -1,1 +1,11 @@
 THIS PROJECT IS IN ALPHA TESTING AND NOT READY FOR PUBLIC CONSUMPTION
+
+Setup instructions:
+0. Compile ShareHttpRequestResponse.java
+1. Create ShareHttpRequestResponse.jar from the class file
+2. Ensure Burp is setup to handle python extensions with Jython
+3. Add the directory where the jar file from above is located as the module path
+4. Load BurpShare.py as an extension
+
+Notes:
+- Only tested on Burp 1.5.05
