@@ -13,8 +13,6 @@ from json import dumps, loads
 from base64 import b64encode, b64decode
 from javax.swing import JSplitPane, JTextField, JList, JScrollPane, JButton, JPanel, DefaultListModel, ListSelectionModel, BoxLayout
 from java.awt.event import ActionListener, ActionEvent
-#from java.lang import String as JavaString
-#from java.io import ObjectInputStream, ObjectOutputStream, ByteArrayInputStream, ByteArrayOutputStream
 from jarray import array as JavaArray
 import ShareHttpRequestResponse
 
