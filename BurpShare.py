@@ -67,11 +67,13 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IExtensionStateListener, 
 			self.server = ShareServer(self.inject,self.ip,self.port,self.cryptokey)
 		except Exception, e:
 			try:
-				self.server = ShareServer(self.inject,"0.0.0.0",PORT,self.cryptokey)
+				self.port = self.port+1
+				self.server = ShareServer(self.inject,self.ip,self.port,self.cryptokey)
 			except Exception, e:
 				self._callbacks.unloadExtension()
 				raise e
 		try:
+			self._callbacks.issueAlert("Listening on port "+str(self.port))
 			start_new_thread(self.server.run,())
 			self.clients = {}
 			self.setupGUI()
@@ -90,13 +92,13 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IExtensionStateListener, 
 	def actionPerformed(self, e):
 		event = e.getActionCommand()
 		if event == "+":
-			connectstring = self._hostfield.getText()
-			c = connectstring.split(':')
+			host = self._hostfield.getText()
+			c = host.split(':')
 			if len(c)==1:
-				self.addPeer(c[0],PORT)
+				self.addPeer(c[0],int(PORT))
 			elif len(c)==2:
-				self.addPeer(c[0],c[1])
-			else return
+				self.addPeer(c[0],int(c[1]))
+			else: return
 			self._clientlist.addElement(host)
 		elif event == "-":
 			# this needs to read which entry is selected in the clientlist
@@ -128,12 +130,13 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IExtensionStateListener, 
 		else:
 			pass
 			#print "got HttpMessage request"
-		rr = ShareHttpRequestResponse(messageInfo)
-		data = dumps(rrtojson(rr))
-		print "Sending", len(data), "bytes"
-		data = xorcrypt(data,self.cryptokey)
-		packet = SharePacket(data)
-		self.send(packet)
+		if self.isConnected():
+			rr = ShareHttpRequestResponse(messageInfo)
+			data = dumps(rrtojson(rr))
+			print "Sending", len(data), "bytes"
+			data = xorcrypt(data,self.cryptokey)
+			packet = SharePacket(data)
+			self.send(packet)
 		return
 	
 	#
@@ -202,6 +205,11 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IExtensionStateListener, 
 	def send(self, packet):
 		for ip,c in self.clients.items():
 			c.send(packet)
+			
+	def isConnected(self):
+		if len(self.clients)>0:
+			return True
+		return False
 		
 	def inject(self, packet, addr):
 		data = packet.getData()
@@ -219,7 +227,11 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IExtensionStateListener, 
 	def restorestate(self):
 		self.cryptokey = self._callbacks.loadExtensionSetting("cryptokey")
 		self.ip = self._callbacks.loadExtensionSetting("listenip")
-		self.port = int(self._callbacks.loadExtensionSetting("listenport"))
+		self.port = self._callbacks.loadExtensionSetting("listenport")
+		try:
+			self.port = int(self.port)
+		except:
+			pass
 		
 	def savestate(self):
 		self._callbacks.saveExtensionSetting("cryptokey",self.cryptokey)
