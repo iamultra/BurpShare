@@ -3,23 +3,17 @@ from burp import ITab
 from burp import IHttpListener
 from burp import IExtensionStateListener
 from burp import IHttpRequestResponse, IHttpService
-from Queue import Queue, Empty as QueueEmpty
+from Queue import Queue
 from thread import start_new_thread
-from socket import socket, AF_INET, SOCK_STREAM, SHUT_RDWR, SOL_SOCKET, SO_REUSEADDR
-from socket import error as socketerror
-from ssl import wrap_socket
-from itertools import izip, cycle
 from json import dumps, loads
 from base64 import b64encode, b64decode
 from javax.swing import JSplitPane, JTextField, JList, JScrollPane, JButton, JPanel, DefaultListModel, ListSelectionModel, BoxLayout
 from java.awt.event import ActionListener, ActionEvent
 from jarray import array as JavaArray
 import ShareHttpRequestResponse
+from BurpShareComms import ShareConnector, ShareListener, SharePacket
 
 PORT=61398
-
-def xorcrypt(text,key):
-    return ''.join(chr(ord(x) ^ ord(y)) for (x,y) in izip(text,cycle(key)))
 
 def jsontorr(j):
 	request = JavaArray(b64decode(j["request"]),'b')
@@ -62,7 +56,7 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IExtensionStateListener, 
 		if not self.port: self.port = PORT
 		
 		try:
-			self.server = ShareServer(self.addIncomingPeer,self.ip,self.port,self.cryptokey)
+			self.server = ShareListener(self.addIncomingPeer,self.ip,self.port,self.cryptokey,self.inject)
 		except Exception, e:
 			self._callbacks.unloadExtension()
 			raise e
@@ -89,9 +83,9 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IExtensionStateListener, 
 			host = self._hostfield.getText()
 			c = host.split(':')
 			if len(c)==1:
-				self.addOutgoingPeer(c[0],int(PORT))
+				ret = self.createOutgoingPeer(c[0],int(PORT))
 			elif len(c)==2:
-				self.addOutgoingPeer(c[0],int(c[1]))
+				ret = self.createOutgoingPeer(c[0],int(c[1]))
 			else: return
 		elif event == "-":
 			# this needs to read which entry is selected in the clientlist
@@ -183,35 +177,32 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IExtensionStateListener, 
 		self._callbacks.customizeUiComponent(buttons)
 		self._callbacks.customizeUiComponent(jpanel)
 		
-	def addPeer(self, ip, port, conn=None):
-		if ip in self.clients:
-			self._callbacks.issueAlert("Already connected to "+ip)
-			return False
-		try:
-			self.clients[ip] = ShareConnection(self.inject,conn,ip,port)
-		except socketerror:
-			self._callbacks.issueAlert("Failed to connect to "+ip+" on port "+str(port))
-			return False
-		start_new_thread(self.clients[ip].run,())
+	def _addPeer(self, ip, port, outq):
+		addr = ip+":"+str(port)
+		print "adding peer to internal lists", addr
+		# add peer info to GUI list
+		self._clientlist.addElement(addr)
+		# add Queue to list of queues
+		self.clients[addr] = outq
 		return True
 		
-	def addIncomingPeer(self, conn, addr):
+	def addIncomingPeer(self, addr, outq):
 		ip, port = addr
-		ok = self.addPeer(ip, port, conn)
-		if ok:
-			self._clientlist.addElement(ip+":"+str(port))
+		return self._addPeer(ip, port, outq)
 		
-	def addOutgoingPeer(self, ip, port):
-		ok = self.addPeer(ip, port, None)
-		if ok:
-			self._clientlist.addElement(ip+":"+str(port))
+	def createOutgoingPeer(self, ip, port):
+		outq = ShareConnector.establishOutgoing(ip, port, self.cryptokey, self.inject)
+		if outq:
+			return self._addPeer(ip, port, outq)
+		print "createOutgoingPeer: failed to establish outgoing connection to",ip,port
+		return False
 		
-	def delPeer(self, ip):
-		del self.clients[ip]
+	def delPeer(self, addr):
+		del self.clients[addr]
 
 	def send(self, packet):
-		for ip,c in self.clients.items():
-			c.send(packet)
+		for q in self.clients:
+			q.put(packet)
 			
 	def isConnected(self):
 		if len(self.clients)>0:
@@ -221,7 +212,6 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IExtensionStateListener, 
 	def inject(self, packet, addr):
 		data = packet.getData()
 		print "Received",len(data),"bytes from",addr
-		data = xorcrypt(data,self.cryptokey)
 		i = ""
 		try:
 			i = loads(data)
@@ -244,74 +234,3 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IExtensionStateListener, 
 		self._callbacks.saveExtensionSetting("cryptokey",self.cryptokey)
 		self._callbacks.saveExtensionSetting("listenip",self.ip)
 		self._callbacks.saveExtensionSetting("listenport",str(self.port))
-
-class ShareConnection:
-	def __init__(self,burpmethod,insock=None,ip=None,port=PORT):
-		self.q = Queue()
-		self.ip = ip
-		self.port = port
-		self.burpmethod = burpmethod
-		if not insock and ip:
-			self.sock = socket(AF_INET,SOCK_STREAM)
-			self.sock.settimeout(5.0)
-			self.sock.connect( (ip,port) )
-		elif socket:
-			self.sock = insock
-		else:
-			raise "ShareConnection requires a socket or an IP address"
-		self.dorun = True
-		
-	def send(self,packet):
-		self.q.put(packet)
-		
-	def run(self):
-		self.sock.setblocking(0)
-		while self.dorun:
-			try:
-				#Non-blocking Receive
-				data = self.sock.recv(65535)
-				print data
-				if data: self.burpmethod(SharePacket(data))
-			except socketerror, e:
-				num,text = e
-				if num==10035:
-					#Non-blocking Send		
-					try:
-						packet = self.q.get_nowait()
-						self.sock.sendall(packet.getData())
-						self.q.task_done()
-					except QueueEmpty:
-						pass						
-				else:
-					raise e
-	
-	def die(self):
-		self.dorun = False
-		self.q.join()
-		self.sock.close()
-			
-class ShareServer:
-	def __init__(self,burpmethod,ip,port,key):
-		self.q = Queue()
-		self.burpmethod = burpmethod
-		self.sock = socket(AF_INET,SOCK_STREAM)
-		self.sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-		self.sock.bind( (ip,port) )
-		self.sock.listen(5)
-		
-	def run(self):
-		while True:
-			conn, addr = self.sock.accept()
-			ok = self.burpmethod(addr,conn)
-			if not ok: conn.close()
-			
-	def die(self):
-		self.sock.shutdown(SHUT_RDWR)
-		self.sock.close()
-			
-class SharePacket:
-	def __init__(self,data):
-		self.data = data
-		
-	def getData(self):
-		return self.data
