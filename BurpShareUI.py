@@ -8,29 +8,14 @@ from java.awt import *
 from javax.swing.table import DefaultTableModel
 from java.awt.event import *
 
-#ActionListener, ActionEvent
-
-#from javax.swing import JSplitPane, JTextField, JList, JScrollPane, JButton, JPanel, DefaultListModel, ListSelectionModel, BoxLayout
-
-#from java.awt import Component, GridLayout 
 #
 # implement ITab
 #
-
 class BurpShareUI(ITab):
 
-	def __init__(self):
-		# Burp-specific UI customizations
-		self._callbacks.customizeUiComponent(self._splitpane)
-		self._callbacks.customizeUiComponent(self._keyfield)
-		self._callbacks.customizeUiComponent(jlist)
-		self._callbacks.customizeUiComponent(listscroller)
-		self._callbacks.customizeUiComponent(addbutton)
-		self._callbacks.customizeUiComponent(delbutton)
-		self._callbacks.customizeUiComponent(self._hostfield)
-		self._callbacks.customizeUiComponent(buttons)
-		self._callbacks.customizeUiComponent(jpanel)
-
+	def __init__(self, customizeUiComponentFunction, actionlistener):
+		self.uiFunction = customizeUiComponentFunction
+		self.actionlistener = actionlistener
 		self.setupGUI()
 				
 	def getTabCaption(self):
@@ -91,7 +76,6 @@ class BurpShareUI(ITab):
 		optionsPanel = JPanel()
 		return optionsPanel
 
-
 	def setupGUI(self):
 		self._panel = JPanel()
 		self._panel.layout = BoxLayout(self._panel,BoxLayout.Y_AXIS)
@@ -99,4 +83,19 @@ class BurpShareUI(ITab):
 		self._panel.add(self._createConfigPanel())	
 		self._panel.add(self._createOptionsPanel())
 
-	
+		# Burp-specific UI customizations
+		#self._callbacks.customizeUiComponent(self._splitpane)
+		#self._callbacks.customizeUiComponent(self._keyfield)
+		#self._callbacks.customizeUiComponent(jlist)
+		#self._callbacks.customizeUiComponent(listscroller)
+		#self._callbacks.customizeUiComponent(addbutton)
+		#self._callbacks.customizeUiComponent(delbutton)
+		#self._callbacks.customizeUiComponent(self._hostfield)
+		#self._callbacks.customizeUiComponent(buttons)
+		#self._callbacks.customizeUiComponent(jpanel)
+		
+	def peerConnected(self, addressString, key):
+		pass
+		
+	def peerDisconnected(self, addressString):
+		pass
