@@ -10,7 +10,6 @@ from base64 import b64encode, b64decode
 from jarray import array as JavaArray
 import ShareHttpRequestResponse
 from BurpShareComms import ShareConnector, ShareListener, SharePacket
-
 from BurpShareUI import *
 
 PORT=61398
