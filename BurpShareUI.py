@@ -19,7 +19,8 @@ from java.awt.event import *
 
 class BurpShareUI(ITab):
 
-	def __init__(self,actionlistener):
+	def __init__(self, customizeUiComponentFunction, actionlistener):
+		self.uiFunction = customizeUiComponentFunction
 		self.actionlistener = actionlistener
 		self.setupGUI()
 			

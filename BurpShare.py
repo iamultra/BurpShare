@@ -37,7 +37,7 @@ def rrtojson(rr):
 	j["protocol"] = rr.getProtocol()
 	return j
 
-class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener, ActionListener):
+class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 	
 	#
 	# implement IBurpExtender
@@ -121,7 +121,8 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener, Action
 			client.die()
 			
 	def setupGUI(self):
-		self.ui = BurpShareUI(self)
+		self.actionListener = BurpShareActionListener()
+		self.ui = BurpShareUI(self._callbacks.customizeUiComponent,self.actionListener)
 		
 	def setupListener(self):
 		self.server = ShareListener(self.addIncomingPeer,self.ip,self.port,self.cryptokey,self.inject)
@@ -184,3 +185,8 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener, Action
 		self._callbacks.saveExtensionSetting("cryptokey",self.cryptokey)
 		self._callbacks.saveExtensionSetting("listenip",self.ip)
 		self._callbacks.saveExtensionSetting("listenport",str(self.port))
+
+class BurpShareActionListener(ActionListener):
+	def __init__(self):
+		pass
+		
