@@ -19,7 +19,8 @@ from java.awt.event import *
 
 class BurpShareUI(ITab):
 
-	def __init__(self):
+	def __init__(self,actionlistener):
+		self.actionlistener = actionlistener
 		self.setupGUI()
 			
 	def getTabCaption(self):
@@ -98,4 +99,10 @@ class BurpShareUI(ITab):
 		#self._callbacks.customizeUiComponent(self._hostfield)
 		#self._callbacks.customizeUiComponent(buttons)
 		#self._callbacks.customizeUiComponent(jpanel)
+		
+	def peerConnected(self, addressString, key):
+		pass
+		
+	def peerDisconnected(self, addressString):
+		pass
 

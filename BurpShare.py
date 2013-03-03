@@ -55,13 +55,7 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener, Action
 		if not self.port: self.port = PORT
 		
 		try:
-			self.server = ShareListener(self.addIncomingPeer,self.ip,self.port,self.cryptokey,self.inject)
-		except Exception, e:
-			self._callbacks.unloadExtension()
-			raise e
-		try:
-			self._callbacks.issueAlert("Listening on port "+str(self.port))
-			start_new_thread(self.server.run,())
+			self.setupListener()
 			self.clients = {}
 			self.setupGUI()
 			self._callbacks.addSuiteTab(self.ui)
@@ -127,14 +121,17 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener, Action
 			client.die()
 			
 	def setupGUI(self):
-		self.ui = BurpShareUI()
+		self.ui = BurpShareUI(self)
+		
+	def setupListener(self):
+		self.server = ShareListener(self.addIncomingPeer,self.ip,self.port,self.cryptokey,self.inject)
+		self._callbacks.issueAlert("Listening on port "+str(self.port))
+		start_new_thread(self.server.run,())
 		
 	def _addPeer(self, ip, port, outq):
 		addr = ip+":"+str(port)
 		print "adding peer to internal lists", addr
-		# add peer info to GUI list
-		self._clientlist.addElement(addr)
-		# add Queue to list of queues
+		self.ui.peerConnected(addr, self.cryptokey)
 		self.clients[addr] = outq
 		return True
 		
@@ -150,6 +147,7 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener, Action
 		return False
 		
 	def delPeer(self, addr):
+		self.ui.peerDisconnected(addr)
 		del self.clients[addr]
 
 	def send(self, packet):
