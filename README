@@ -1,13 +1,13 @@
 THIS PROJECT IS IN ALPHA TESTING AND NOT READY FOR PUBLIC CONSUMPTION
 
 Setup instructions:
-0. Compile ShareHttpRequestResponse.java
-1. Create ShareHttpRequestResponse.jar from the class file
+0. Compile ShareHttpRequestResponse.java into a class file
+1. Install Jython
 2. Ensure Burp is setup to handle python extensions with Jython
-3. Add the directory where the jar file from above is located as the module path
+3. Add the directory where the class file from above is located as the module path
 4. Load BurpShare.py as an extension
 
 Notes:
-- Only tested on Burp 1.5.05
+- Only tested on Burp 1.5.05 and 1.5.07, on Windows and Ubuntu
 - It's not peer-to-peer. Connect to someone to send to them, and vice-versa.
 - The XOR crypto key is hardcoded, which is terrible.
