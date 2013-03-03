@@ -55,9 +55,9 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 		if not self.port: self.port = PORT
 		
 		try:
-			self.setupListener()
+			self._setupListener()
 			self.clients = {}
-			self.setupGUI()
+			self._setupGUI()
 			self._callbacks.addSuiteTab(self.ui)
 		except Exception, e:
 			self.server.die()
@@ -65,32 +65,7 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 			raise e
 		self.savestate()
 		return
-		
-	#
-	# implement ActionListener
-	#
-		
-	def actionPerformed(self, e):
-		event = e.getActionCommand()
-		if event == "+":
-			host = self._hostfield.getText()
-			c = host.split(':')
-			if len(c)==1:
-				ret = self.createOutgoingPeer(c[0],int(PORT))
-			elif len(c)==2:
-				ret = self.createOutgoingPeer(c[0],int(c[1]))
-			else: return
-		elif event == "-":
-			# this needs to read which entry is selected in the clientlist
-			# kill the peer, then remove it from the list
-			pass
-		else:
-			raise Exception("Unknown action to be performed:", event)
-		self.savestate()
-		return
-		
 
-		
 	#
 	# implement IHttpListener
 	#
@@ -102,13 +77,13 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 		else:
 			pass
 			#print "got HttpMessage request"
-		if self.isConnected():
+		if self._isConnected():
 			rr = ShareHttpRequestResponse(messageInfo)
 			data = dumps(rrtojson(rr))
 			print "Sending", len(data), "bytes"
 			data = xorcrypt(data,self.cryptokey)
 			packet = SharePacket(data)
-			self.send(packet)
+			self._send(packet)
 		return
 	
 	#
@@ -120,11 +95,11 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 		for client in self.clients:
 			client.die()
 			
-	def setupGUI(self):
+	def _setupGUI(self):
 		self.actionListener = BurpShareActionListener()
 		self.ui = BurpShareUI(self._callbacks.customizeUiComponent,self.actionListener)
 		
-	def setupListener(self):
+	def _setupListener(self):
 		self.server = ShareListener(self.addIncomingPeer,self.ip,self.port,self.cryptokey,self.inject)
 		self._callbacks.issueAlert("Listening on port "+str(self.port))
 		start_new_thread(self.server.run,())
@@ -151,11 +126,11 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 		self.ui.peerDisconnected(addr)
 		del self.clients[addr]
 
-	def send(self, packet):
+	def _send(self, packet):
 		for q in self.clients:
 			q.put(packet)
 			
-	def isConnected(self):
+	def _isConnected(self):
 		if len(self.clients)>0:
 			return True
 		return False
@@ -187,6 +162,24 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 		self._callbacks.saveExtensionSetting("listenport",str(self.port))
 
 class BurpShareActionListener(ActionListener):
-	def __init__(self):
-		pass
+	def __init__(self, burpshare):
+		self.burpshare = burpshare
 		
+	def actionPerformed(self, e):
+		event = e.getActionCommand()
+		if event == "+":
+			host = self.burpshare.ui.getHostText()
+			c = host.split(':')
+			if len(c)==1:
+				ret = self.burpshare.createOutgoingPeer(c[0],int(PORT))
+			elif len(c)==2:
+				ret = self.burpshare.createOutgoingPeer(c[0],int(c[1]))
+			else: return
+		elif event == "-":
+			peer = self.burpshare.ui.getSelectedPeer()
+			if peer:
+				self.burpshare.delPeer(peer)
+		else:
+			raise Exception("Unknown action to be performed:", event)
+		burpshare.savestate()
+		return

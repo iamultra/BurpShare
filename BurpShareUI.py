@@ -107,3 +107,8 @@ class BurpShareUI(ITab):
 	def peerDisconnected(self, addressString):
 		pass
 
+	def getSelectedPeer(self):
+		pass
+		
+	def getHostText(self):
+		pass
