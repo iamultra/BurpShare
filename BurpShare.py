@@ -7,11 +7,11 @@ from Queue import Queue
 from thread import start_new_thread
 from json import dumps, loads
 from base64 import b64encode, b64decode
-from javax.swing import JSplitPane, JTextField, JList, JScrollPane, JButton, JPanel, DefaultListModel, ListSelectionModel, BoxLayout
-from java.awt.event import ActionListener, ActionEvent
 from jarray import array as JavaArray
 import ShareHttpRequestResponse
 from BurpShareComms import ShareConnector, ShareListener, SharePacket
+
+from BurpShareUI import *
 
 PORT=61398
 
@@ -38,7 +38,7 @@ def rrtojson(rr):
 	j["protocol"] = rr.getProtocol()
 	return j
 
-class BurpExtender(IBurpExtender, ITab, IHttpListener, IExtensionStateListener, ActionListener):
+class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener, ActionListener):
 	
 	#
 	# implement IBurpExtender
@@ -65,7 +65,7 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IExtensionStateListener, 
 			start_new_thread(self.server.run,())
 			self.clients = {}
 			self.setupGUI()
-			self._callbacks.addSuiteTab(self)
+			self._callbacks.addSuiteTab(self.ui)
 		except Exception, e:
 			self.server.die()
 			self._callbacks.unloadExtension()
@@ -96,15 +96,7 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IExtensionStateListener, 
 		self.savestate()
 		return
 		
-	#
-	# implement ITab
-	#
-		
-	def getTabCaption(self):
-		return "BurpShare"
-	
-	def getUiComponent(self):
-		return self._splitpane
+
 		
 	#
 	# implement IHttpListener
@@ -137,45 +129,7 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IExtensionStateListener, 
 			
 			
 	def setupGUI(self):
-		# setup UI stuff
-		self._splitpane = JSplitPane(JSplitPane.VERTICAL_SPLIT)
-		# top UI
-		#self._keyfield = JTextField(self.cryptokey) 
-		#self._splitpane.setLeftComponent(self._keyfield)
-		# bottom list
-		self._clientlist = DefaultListModel()
-		jlist = JList(self._clientlist)
-		jlist.setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
-		jlist.setLayoutOrientation(JList.VERTICAL)
-		listscroller = JScrollPane(jlist)
-		# bottom buttons
-		addbutton = JButton("+")
-		addbutton.setActionCommand("+")
-		addbutton.addActionListener(self)
-		delbutton = JButton("-")
-		delbutton.setActionCommand("-")
-		delbutton.addActionListener(self)
-		self._hostfield = JTextField(20)
-		buttons = JPanel()
-		buttons.setLayout(BoxLayout(buttons,BoxLayout.LINE_AXIS))
-		buttons.add(delbutton)
-		buttons.add(self._hostfield)
-		buttons.add(addbutton)
-		# bottom panel
-		jpanel = JPanel()
-		jpanel.add(listscroller)
-		jpanel.add(buttons)
-		self._splitpane.setRightComponent(jpanel)
-		# Burp-specific UI customizations
-		self._callbacks.customizeUiComponent(self._splitpane)
-		#self._callbacks.customizeUiComponent(self._keyfield)
-		self._callbacks.customizeUiComponent(jlist)
-		self._callbacks.customizeUiComponent(listscroller)
-		self._callbacks.customizeUiComponent(addbutton)
-		self._callbacks.customizeUiComponent(delbutton)
-		self._callbacks.customizeUiComponent(self._hostfield)
-		self._callbacks.customizeUiComponent(buttons)
-		self._callbacks.customizeUiComponent(jpanel)
+		self.ui = BurpShareUI()
 		
 	def _addPeer(self, ip, port, outq):
 		addr = ip+":"+str(port)
