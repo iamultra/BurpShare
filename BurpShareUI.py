@@ -20,8 +20,19 @@ from java.awt.event import *
 class BurpShareUI(ITab):
 
 	def __init__(self):
+		# Burp-specific UI customizations
+		self._callbacks.customizeUiComponent(self._splitpane)
+		self._callbacks.customizeUiComponent(self._keyfield)
+		self._callbacks.customizeUiComponent(jlist)
+		self._callbacks.customizeUiComponent(listscroller)
+		self._callbacks.customizeUiComponent(addbutton)
+		self._callbacks.customizeUiComponent(delbutton)
+		self._callbacks.customizeUiComponent(self._hostfield)
+		self._callbacks.customizeUiComponent(buttons)
+		self._callbacks.customizeUiComponent(jpanel)
+
 		self.setupGUI()
-			
+				
 	def getTabCaption(self):
 		return "BurpShare"
 	
@@ -88,14 +99,4 @@ class BurpShareUI(ITab):
 		self._panel.add(self._createConfigPanel())	
 		self._panel.add(self._createOptionsPanel())
 
-		# Burp-specific UI customizations
-		#self._callbacks.customizeUiComponent(self._splitpane)
-		#self._callbacks.customizeUiComponent(self._keyfield)
-		#self._callbacks.customizeUiComponent(jlist)
-		#self._callbacks.customizeUiComponent(listscroller)
-		#self._callbacks.customizeUiComponent(addbutton)
-		#self._callbacks.customizeUiComponent(delbutton)
-		#self._callbacks.customizeUiComponent(self._hostfield)
-		#self._callbacks.customizeUiComponent(buttons)
-		#self._callbacks.customizeUiComponent(jpanel)
-
+	
