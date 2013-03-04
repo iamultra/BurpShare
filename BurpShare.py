@@ -6,36 +6,12 @@ from burp import IHttpRequestResponse, IHttpService
 from Queue import Queue
 from thread import start_new_thread
 from json import dumps, loads
-from base64 import b64encode, b64decode
-from jarray import array as JavaArray
 import ShareHttpRequestResponse
-from BurpShareComms import ShareConnector, ShareListener, SharePacket
-from BurpShareUI import *
+from BurpShareComms import BurpShareConnector, BurpShareListener, BurpSharePacket, BurpShareConnectionTracker
+from BurpShareUI import BurpShareUI
+from java.awt.event import ActionListener
 
 PORT=61398
-
-def jsontorr(j):
-	request = JavaArray(b64decode(j["request"]),'b')
-	response = JavaArray(b64decode(j["response"]),'b')
-	rr = ShareHttpRequestResponse(request,response,j["comment"],j["highlight"],j["host"],j["port"],j["protocol"])
-	return rr
-
-def rrtojson(rr):
-	j = {}
-	j["request"] = ""
-	request = rr.getRequest()
-	if request != None:
-		j["request"] = b64encode(request.tostring())
-	j["response"] = ""
-	response = rr.getResponse()
-	if response != None:
-		j["response"] = b64encode(response.tostring())
-	j["comment"] = rr.getComment()
-	j["highlight"] = rr.getHighlight()
-	j["host"] = rr.getHost()
-	j["port"] = rr.getPort()
-	j["protocol"] = rr.getProtocol()
-	return j
 
 class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 	"""
@@ -78,10 +54,10 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 			pass
 			#print "got HttpMessage request"
 		if self._isConnected():
-			rr = ShareHttpRequestResponse(messageInfo)
-			data = dumps(rrtojson(rr))
+			rr = BurpShareHttpRequestResponse(messageInfo)
+			data = dumps(BurpSharePacket.rrtojson(rr))
 			print "Sending", len(data), "bytes"
-			packet = SharePacket(data)
+			packet = BurpSharePacket(data)
 			self._send(packet)
 		return
 
@@ -90,8 +66,8 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 		Required by IExtensionStateListener. Destruction of the extension.
 		"""
 		self.server.die()
-		for client in self.clients:
-			client.die()
+		for obj in self.clients:
+			obj.die()
 			
 	def _setupGUI(self):
 		self.actionListener = BurpShareActionListener(self)
@@ -99,46 +75,55 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 		self._restoreUIState()
 		
 	def _setupListener(self):
-		self.server = ShareListener(self.addIncomingPeer,self.ip,self.port,self.cryptokey,self.inject)
+		self.server = BurpShareListener(self.addIncomingPeer,self.ip,self.port,self.cryptokey,self.inject)
 		self._callbacks.issueAlert("Listening on port "+str(self.port))
 		start_new_thread(self.server.run,())
 		
-	def _addPeer(self, ip, port, outq):
-		addr = ip+":"+str(port)
+	def _killListener(self):
+		self._callbacks.issueAlert("Killing listener")
+		self.server.die()
+
+	def updateListener(self, ip, port):
+		self._killListener()
+		self.ip = ip
+		self.port = port
+		self._setupListener()
+		
+	def _addPeer(self, obj):
+		addrstr = obj.getHost()+":"+str(obj.getPort())
 		print "adding peer to internal lists", addr
-		self.clients[addr] = outq
+		self.clients[addrstr] = obj
 		return True
 		
-	def addIncomingPeer(self, addr, outq):
+	def addIncomingPeer(self, obj):
 		"""
 		Callback for incoming connections. Returns True on success, False on failure.
 		"""
-		ip, port = addr
-		ret = self._addPeer(ip, port, outq)
+		addrstr = obj.getHost()+":"+str(obj.getPort())
+		ret = self._addPeer(obj)
 		if ret:
-			self.ui.peerConnected(ip+":"+str(port), self.cryptokey)
+			self.ui.peerConnected(addrstr, self.cryptokey)
 			self.saveState()
 		
 	def createOutgoingPeer(self, ip, port):
 		"""
 		Activation point for user-initiated connections. Returns True on success, False on failure.
 		"""
-		outq = ShareConnector.establishOutgoing(ip, port, self.cryptokey, self.inject)
-		if outq:
-			return self._addPeer(ip, port, outq)
+		obj = BurpShareConnector.establishOutgoing(ip, port, self.cryptokey, self.inject)
+		if obj:
+			return self._addPeer(obj)
 		print "createOutgoingPeer: failed to establish outgoing connection to",ip,port
 		return False
 		
-	def delPeer(self, addr):
+	def delPeer(self, addrstr):
 		"""
 		Activation point for user-initiated disconnections.
 		"""
-		self.ui.peerDisconnected(addr)
-		del self.clients[addr]
+		del self.clients[addrstr]
 
 	def _send(self, packet):
-		for q in self.clients:
-			q.put(packet)
+		for obj in self.clients:
+			obj.getQueue().put(packet)
 			
 	def _isConnected(self):
 		if len(self.clients)>0:
@@ -157,7 +142,7 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 		except Exception:
 			print "Malformed packet from",addr
 			return
-		item = jsontorr(i)
+		item = BurpSharePacket.jsontorr(i)
 		self._callbacks.addToSiteMap(item)
 		
 	def restoreState(self):
@@ -208,13 +193,18 @@ class BurpShareActionListener(ActionListener):
 			peer = self.burpshare.ui.getSelectedPeer()
 			if peer:
 				self.burpshare.delPeer(peer)
+				self.ui.peerDisconnected(peer)
 		elif event == "connectPeer":
 			# figure out which peer we're talking about
-			# then call createOutgoingPeer
+			# then call self.burpshare.createOutgoingPeer(peer)
 			pass
 		elif event == "disconnectPeer":
 			# figure out which peer we're talking about
-			# then ???
+			# then call self.burpshare.delPeer(peer)
+			pass
+		elif event == "updateListener":
+			# pull ip & port info from box
+			# then clal self.burpshare.updateListener(ip, port)
 			pass
 		else:
 			raise Exception("Unknown action to be performed:", event)
