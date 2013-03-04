@@ -1,5 +1,4 @@
 from burp import IBurpExtender
-from burp import ITab
 from burp import IHttpListener
 from burp import IExtensionStateListener
 from burp import IHttpRequestResponse, IHttpService
