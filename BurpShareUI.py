@@ -3,6 +3,7 @@ from burp import ITab
 from burp import IHttpListener
 from burp import IExtensionStateListener
 
+#TODO cleanup imports
 from javax.swing import *
 from java.awt import *
 from javax.swing.table import DefaultTableModel
@@ -14,6 +15,8 @@ from java.awt.event import *
 class BurpShareUI(ITab):
 
 	def __init__(self, customizeUiComponentFunction, actionlistener):
+		self.peerList = []
+
 		self.uiFunction = customizeUiComponentFunction
 		self.actionlistener = actionlistener
 		self.setupGUI()
@@ -25,15 +28,6 @@ class BurpShareUI(ITab):
 		return self._panel
 
 	def _createPeerPanel(self):
-		self.peerList = [
-			["127.0.0.1","Test","testkey"],
-			["192.168.1.1","Test2","newkey"],
-			["127.0.0.1","Test","testkey"],
-			["192.168.1.1","Test2","newkey"],		
-			["127.0.0.1","Test","testkey"],
-			["192.168.1.1","Test2","newkey"],
-		]
-
 		label = JLabel("Peers")
 		self.uiFunction(label)
 
@@ -58,7 +52,7 @@ class BurpShareUI(ITab):
 		#peerPanel.add(label)
 		peerPanel.add(buttonPanel)
 		#peerPanel.add(addPeerButton)
-		peerPanel.add(peerTable)
+		peerPanel.add(JScrollPane(peerTable))
 		#peerPanel.add(delPeerButton)
 
 		return peerPanel
@@ -67,10 +61,10 @@ class BurpShareUI(ITab):
 		configPanel = JPanel()
 		configPanel.layout = FlowLayout()
 
-		interfaceLabel = JLabel("Interface: ")
+		interfaceLabel = JLabel("Interface:")
 		self.uiFunction(interfaceLabel)
 
-		keyLabel = JLabel("Shared Key: ")
+		keyLabel = JLabel("Shared Key:")
 		self.uiFunction(keyLabel)
 
 		interfaceField = JTextField('0.0.0.0:61398',20)
@@ -114,6 +108,7 @@ class BurpShareUI(ITab):
 		#peerSeparator = JSeparator()
 		#configSeparator = JSeparator()
 
+		#TODO fixup labels
 		#peerLabel = JLabel("Peers")
 		#self.uiFunction(peerLabel)	
 		#configLabel = JLabel("Configuration")
