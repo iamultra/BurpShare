@@ -89,9 +89,12 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 		self.port = port
 		self._setupListener()
 		
+	def updateKey(self, newKey):
+		self.cryptokey = newKey
+		
 	def _addPeer(self, obj):
 		addrstr = obj.getHost()+":"+str(obj.getPort())
-		print "adding peer to internal lists", addr
+		#print "adding peer to internal lists", addr
 		self.clients[addrstr] = obj
 		return True
 		
@@ -112,7 +115,7 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 		obj = BurpShareConnector.establishOutgoing(ip, port, self.cryptokey, self.inject)
 		if obj:
 			return self._addPeer(obj)
-		print "createOutgoingPeer: failed to establish outgoing connection to",ip,port
+		#print "createOutgoingPeer: failed to establish outgoing connection to",ip,port
 		return False
 		
 	def delPeer(self, addrstr):
@@ -175,25 +178,27 @@ class BurpShareActionListener(ActionListener):
 	"""
 	def __init__(self, burpshare):
 		self.burpshare = burpshare
+		self.alert = burpshare._callbacks.issueAlert
 		
 	def actionPerformed(self, e):
 		event = e.getActionCommand()
 		if event == "addPeer":
 			host = self.burpshare.ui.getHostText()
 			c = host.split(':')
-			if len(c)==1:
-				ret = self.burpshare.createOutgoingPeer(c[0],int(PORT))
-			elif len(c)==2:
-				ret = self.burpshare.createOutgoingPeer(c[0],int(c[1]))
-			else: return
-			if ret:
-				addr = ip+":"+str(port)
-				self.burpshare.ui.peerConnected(addr, self.cryptokey)
+			port = PORT
+			if len(c)>1:
+				port = int(c[1])
+			ret = self.burpshare.createOutgoingPeer(c[0],port)
+			if not ret:
+				self.alert("Unable to connect to "+c[0]+" port "+str(port))
+				return
+			addr = ip+":"+str(port)
+			self.burpshare.ui.peerConnected(addr, self.cryptokey)
 		elif event == "removePeer":
 			peer = self.burpshare.ui.getSelectedPeer()
 			if peer:
 				self.burpshare.delPeer(peer)
-				self.ui.peerDisconnected(peer)
+				self.burpshare.ui.peerDisconnected(peer)
 		elif event == "connectPeer":
 			# figure out which peer we're talking about
 			# then call self.burpshare.createOutgoingPeer(peer)
@@ -204,9 +209,13 @@ class BurpShareActionListener(ActionListener):
 			pass
 		elif event == "updateListener":
 			# pull ip & port info from box
-			# then clal self.burpshare.updateListener(ip, port)
+			# then call self.burpshare.updateListener(ip, port)
+			pass
+		elif event == "updateKey":
+			# pull new key from text field
+			# then call self.burpshrae.updateKey(key)
 			pass
 		else:
 			raise Exception("Unknown action to be performed:", event)
-		burpshare.saveState()
+		self.burpshare.saveState()
 		return
