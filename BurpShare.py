@@ -38,12 +38,14 @@ def rrtojson(rr):
 	return j
 
 class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
-	
-	#
-	# implement IBurpExtender
-	#
+	"""
+	The main extension class.
+	"""
 	
 	def	registerExtenderCallbacks(self, callbacks):
+		"""
+		Required by IBurpExtender. This is where initialization happens.
+		"""
 		self._callbacks = callbacks
 		self._callbacks.setExtensionName("BurpShare")
 		self._callbacks.registerHttpListener(self)
@@ -65,12 +67,11 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 			raise e
 		self.savestate()
 		return
-
-	#
-	# implement IHttpListener
-	#
 		
 	def processHttpMessage(self, toolFlag, messageIsRequest, messageInfo):
+		"""
+		Required by IHttpListener. This is where Http events come in.
+		"""
 		if not messageIsRequest:
 			pass
 			#print "got HttpMessage response"
@@ -81,22 +82,20 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 			rr = ShareHttpRequestResponse(messageInfo)
 			data = dumps(rrtojson(rr))
 			print "Sending", len(data), "bytes"
-			data = xorcrypt(data,self.cryptokey)
 			packet = SharePacket(data)
 			self._send(packet)
 		return
-	
-	#
-	# implement IExtensionStateListener
-	#
-		
+
 	def extensionUnloaded(self):
+		"""
+		Required by IExtensionStateListener. Destruction of the extension.
+		"""
 		self.server.die()
 		for client in self.clients:
 			client.die()
 			
 	def _setupGUI(self):
-		self.actionListener = BurpShareActionListener()
+		self.actionListener = BurpShareActionListener(self)
 		self.ui = BurpShareUI(self._callbacks.customizeUiComponent,self.actionListener)
 		
 	def _setupListener(self):
@@ -112,10 +111,16 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 		return True
 		
 	def addIncomingPeer(self, addr, outq):
+		"""
+		Callback for incoming connections. Returns True on success, False on failure.
+		"""
 		ip, port = addr
 		return self._addPeer(ip, port, outq)
 		
 	def createOutgoingPeer(self, ip, port):
+		"""
+		Activation point for user-initiated connections. Returns True on success, False on failure.
+		"""
 		outq = ShareConnector.establishOutgoing(ip, port, self.cryptokey, self.inject)
 		if outq:
 			return self._addPeer(ip, port, outq)
@@ -123,6 +128,9 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 		return False
 		
 	def delPeer(self, addr):
+		"""
+		Activation point for user-initiated disconnections.
+		"""
 		self.ui.peerDisconnected(addr)
 		del self.clients[addr]
 
@@ -136,6 +144,9 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 		return False
 		
 	def inject(self, packet, addr):
+		"""
+		Callback for incoming data.
+		"""
 		data = packet.getData()
 		print "Received",len(data),"bytes from",addr
 		i = ""
