@@ -9,7 +9,6 @@ import ShareHttpRequestResponse
 
 class BurpShareConnection():
 	def __init__(self,insock,addr,key,queue=None,callback=None):
-		Thread.__init__(self)
 		self.q = queue
 		self.sock = insock
 		self.addr = addr
@@ -144,7 +143,7 @@ class BurpSharePacket:
 		return j
 
 class BurpShareConnectionTracker:
-	def __init__(self, inconn = None, outconn = None, outqueue = None, addr = None, key = None):
+	def __init__(self, inconn, outconn, outqueue, addr, key):
 		self.inconn = inconn
 		self.outconn = outconn
 		self.outqueue = outqueue
@@ -172,5 +171,9 @@ class BurpShareConnectionTracker:
 		if outconn: outconn.setKey(newKey)
 		
 	def die(self):
-		if inconn: inconn.die()
-		if outconn: outconn.die()
+		if inconn:
+			inconn.die()
+			inconn = None
+		if outconn:
+			outconn.die()
+			outconn = None

@@ -122,6 +122,7 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 		"""
 		Activation point for user-initiated disconnections.
 		"""
+		self.clients[addrstr].die()
 		del self.clients[addrstr]
 
 	def _send(self, packet):
