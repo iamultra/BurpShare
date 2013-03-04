@@ -42,7 +42,7 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 	The main extension class.
 	"""
 	
-	def	registerExtenderCallbacks(self, callbacks):
+	def registerExtenderCallbacks(self, callbacks):
 		"""
 		Required by IBurpExtender. This is where initialization happens.
 		"""
@@ -50,7 +50,7 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 		self._callbacks.setExtensionName("BurpShare")
 		self._callbacks.registerHttpListener(self)
 		
-		self.restorestate()
+		self.restoreState()
 
 		if not self.cryptokey: self.cryptokey = 'ThereCanBeOnlyOne'
 		if not self.ip: self.ip = '0.0.0.0'
@@ -65,7 +65,6 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 			self.server.die()
 			self._callbacks.unloadExtension()
 			raise e
-		self.savestate()
 		return
 		
 	def processHttpMessage(self, toolFlag, messageIsRequest, messageInfo):
@@ -97,6 +96,7 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 	def _setupGUI(self):
 		self.actionListener = BurpShareActionListener(self)
 		self.ui = BurpShareUI(self._callbacks.customizeUiComponent,self.actionListener)
+		self._restoreUIState()
 		
 	def _setupListener(self):
 		self.server = ShareListener(self.addIncomingPeer,self.ip,self.port,self.cryptokey,self.inject)
@@ -108,6 +108,7 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 		print "adding peer to internal lists", addr
 		self.ui.peerConnected(addr, self.cryptokey)
 		self.clients[addr] = outq
+		self.saveState()
 		return True
 		
 	def addIncomingPeer(self, addr, outq):
@@ -158,7 +159,7 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 		item = jsontorr(i)
 		self._callbacks.addToSiteMap(item)
 		
-	def restorestate(self):
+	def restoreState(self):
 		self.cryptokey = self._callbacks.loadExtensionSetting("cryptokey")
 		self.ip = self._callbacks.loadExtensionSetting("listenip")
 		self.port = self._callbacks.loadExtensionSetting("listenport")
@@ -167,12 +168,25 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 		except:
 			pass
 		
-	def savestate(self):
+	def saveState(self):
 		self._callbacks.saveExtensionSetting("cryptokey",self.cryptokey)
 		self._callbacks.saveExtensionSetting("listenip",self.ip)
 		self._callbacks.saveExtensionSetting("listenport",str(self.port))
+		self._saveUIState()
+		
+	def _restoreUIState(self):
+		state = self._callbacks.loadExtensionSetting("UIState")
+		if state:
+			self.ui.setState()
+
+	def _saveUIState(self):
+		state = self.ui.getState()
+		self._callbacks.saveExtensionSetting("UIState",state)
 
 class BurpShareActionListener(ActionListener):
+	"""
+	ActionListener class. This acts as a bridge for GUI -> Main.
+	"""
 	def __init__(self, burpshare):
 		self.burpshare = burpshare
 		
@@ -192,5 +206,5 @@ class BurpShareActionListener(ActionListener):
 				self.burpshare.delPeer(peer)
 		else:
 			raise Exception("Unknown action to be performed:", event)
-		burpshare.savestate()
+		burpshare.saveState()
 		return

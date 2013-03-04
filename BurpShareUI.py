@@ -112,3 +112,16 @@ class BurpShareUI(ITab):
 		
 	def getHostText(self):
 		pass
+		
+	def getState(self):
+		"""
+		Returns the internal state of BurpShareUI as a string.
+		"""
+		return ""
+		
+	def setState(self, string):
+		"""
+		Takes a string returned by getState() and sets the internal state accordingly.
+		Note that all imported connections should be in the disconnected state.
+		"""
+		pass
