@@ -1,10 +1,7 @@
 TO DO:
 -Real encryption
--Control listening information from the menu
--Save/Load connection configs using saveExtensionSetting/loadExtensionSetting
--Checkbox for "Only within scope", use isInScope
--Abstract away client & server into just connections, allow for true P2P
--Change the connection list to display the state each one is in
--Create menu option to add highlight & comment for received entries
--General GUI overhaul
--Locking
+-Locking over Burp callback functions
+-Control listening information from the menu (GUI)
+-Checkbox for "Only within scope", use isInScope (GUI)
+-Connection list should display the state each connection is in (GUI)
+-Option to add highlight color & comment for received entries (GUI)
