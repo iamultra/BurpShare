@@ -96,7 +96,7 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 			client.die()
 			
 	def _setupGUI(self):
-		self.actionListener = BurpShareActionListener()
+		self.actionListener = BurpShareActionListener(self)
 		self.ui = BurpShareUI(self._callbacks.customizeUiComponent,self.actionListener)
 		
 	def _setupListener(self):

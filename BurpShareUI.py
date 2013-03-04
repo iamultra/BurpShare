@@ -34,41 +34,71 @@ class BurpShareUI(ITab):
 			["192.168.1.1","Test2","newkey"],
 		]
 
-		peerPanel = JPanel(GridLayout(0,2))
-
 		label = JLabel("Peers")
+		self.uiFunction(label)
 
 		addPeerButton = JButton("Add")
-		addPeerButton.setMargin(Insets(1,1,1,1))
+		self.uiFunction(addPeerButton)
+
 		delPeerButton = JButton("Remove")
-		delPeerButton.setMargin(Insets(1,1,1,1))
+		self.uiFunction(delPeerButton)
+
+		buttonPanel = JPanel()
+		buttonPanel.layout = BoxLayout(buttonPanel,BoxLayout.Y_AXIS)
+		buttonPanel.add(addPeerButton)
+		buttonPanel.add(delPeerButton)
 
 		peerColNames = ('Host', 'Name', 'Key')	
 		dataModel = DefaultTableModel(self.peerList,peerColNames)
-		peerTable = JTable(dataModel) 		
+		peerTable = JTable(dataModel)
+		self.uiFunction(peerTable)	
 
+		peerPanel = JPanel()
+		peerPanel.layout =  BoxLayout(peerPanel,BoxLayout.X_AXIS)
 		#peerPanel.add(label)
-		peerPanel.add(addPeerButton)
+		peerPanel.add(buttonPanel)
+		#peerPanel.add(addPeerButton)
 		peerPanel.add(peerTable)
-		peerPanel.add(delPeerButton)
+		#peerPanel.add(delPeerButton)
 
 		return peerPanel
 	
 	def _createConfigPanel(self):
-		configPanel = JPanel(GridLayout(0,2))
-
-		label = JLabel("")
+		configPanel = JPanel()
+		configPanel.layout = FlowLayout()
 
 		interfaceLabel = JLabel("Interface: ")
+		self.uiFunction(interfaceLabel)
+
 		keyLabel = JLabel("Shared Key: ")
+		self.uiFunction(keyLabel)
 
-		interfaceField = JTextField('12345',5)
+		interfaceField = JTextField('0.0.0.0:61398',20)
+		self.uiFunction(interfaceField)
+
 		keyField = JTextField('',20)
+		self.uiFunction(keyField)
 
-		configPanel.add(interfaceLabel)
-		configPanel.add(interfaceField)
-		configPanel.add(keyLabel)
-		configPanel.add(keyField)
+		updateButton = JButton("Update")
+		self.uiFunction(updateButton)
+
+		interfacePanel = JPanel()		
+		interfacePanel.layout = FlowLayout() 
+		interfacePanel.add(interfaceLabel)
+		interfacePanel.add(interfaceField)
+
+		keyPanel = JPanel()
+		keyPanel.layout = FlowLayout()
+		keyPanel.add(keyLabel)
+		keyPanel.add(keyField)
+
+		buttonPanel = JPanel()
+		buttonPanel.layout = FlowLayout()
+		buttonPanel.add(updateButton)
+
+		configPanel.add(interfacePanel)
+		configPanel.add(keyPanel)
+		configPanel.add(buttonPanel)
 
 		return configPanel
 
@@ -79,21 +109,28 @@ class BurpShareUI(ITab):
 	def setupGUI(self):
 		self._panel = JPanel()
 		self._panel.layout = BoxLayout(self._panel,BoxLayout.Y_AXIS)
+		
+		#TODO separate properly
+		#peerSeparator = JSeparator()
+		#configSeparator = JSeparator()
+
+		#peerLabel = JLabel("Peers")
+		#self.uiFunction(peerLabel)	
+		#configLabel = JLabel("Configuration")
+		#self.uiFunction(configLabel)
+		#optionsLabel = JLabel("Options")
+		#self.uiFunction(optionsLabel)
+
+		#self._panel.add(peerLabel)
 		self._panel.add(self._createPeerPanel())
-		self._panel.add(self._createConfigPanel())	
+		#self._panel.add(peerSeparator)
+		#self._panel.add(configLabel)
+		self._panel.add(self._createConfigPanel())
+		#self._panel.add(configSeparator)
+		#self._panel.add(optionsLabel)	
 		self._panel.add(self._createOptionsPanel())
 
-		# Burp-specific UI customizations
-		#self._callbacks.customizeUiComponent(self._splitpane)
-		#self._callbacks.customizeUiComponent(self._keyfield)
-		#self._callbacks.customizeUiComponent(jlist)
-		#self._callbacks.customizeUiComponent(listscroller)
-		#self._callbacks.customizeUiComponent(addbutton)
-		#self._callbacks.customizeUiComponent(delbutton)
-		#self._callbacks.customizeUiComponent(self._hostfield)
-		#self._callbacks.customizeUiComponent(buttons)
-		#self._callbacks.customizeUiComponent(jpanel)
-		
+			
 	def peerConnected(self, addressString, key):
 		pass
 		
