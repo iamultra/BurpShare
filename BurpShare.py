@@ -108,7 +108,6 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 		print "adding peer to internal lists", addr
 		self.ui.peerConnected(addr, self.cryptokey)
 		self.clients[addr] = outq
-		self.saveState()
 		return True
 		
 	def addIncomingPeer(self, addr, outq):
@@ -116,7 +115,9 @@ class BurpExtender(IBurpExtender, IHttpListener, IExtensionStateListener):
 		Callback for incoming connections. Returns True on success, False on failure.
 		"""
 		ip, port = addr
-		return self._addPeer(ip, port, outq)
+		ret = self._addPeer(ip, port, outq)
+		if ret:
+			self.saveState()
 		
 	def createOutgoingPeer(self, ip, port):
 		"""
